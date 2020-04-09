@@ -14,3 +14,9 @@ mix ecto.create
 mix ecto.migrate
 
 mix phx.server
+
+mix phx.gen.json Products Game games description:string featured:boolean thumbnail:string title:string
+mix phx.gen.json Products Gameplay gameplays game_id:references:games player_id:references:players player_score:integer
+
+Platform.Products.create_game(%{title: "Platformer", description: "Platform game example.", thumbnail: "http://via.placeholder.com/300x200", featured: true})
+
