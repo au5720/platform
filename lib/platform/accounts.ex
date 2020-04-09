@@ -10,6 +10,7 @@ defmodule Platform.Accounts do
 
   @doc """
   Returns the list of players.
+  We need to see if the changes are gettign saved.
 
   ## Examples
 
@@ -20,6 +21,7 @@ defmodule Platform.Accounts do
   def list_players do
     Repo.all(Player)
   end
+  
 
   @doc """
   Gets a single player.

@@ -1,0 +1,16 @@
+#Some Tips
+
+# Fix the Postgres password issue
+# sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres';"
+# sudo service postgresql restart
+
+
+cd ~/platform
+cd assets
+npm install
+
+
+mix ecto.create
+mix ecto.migrate
+
+mix phx.server

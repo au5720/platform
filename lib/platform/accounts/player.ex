@@ -37,7 +37,7 @@ defmodule Platform.Accounts.Player do
   defp put_pass_digest(changeset) do
     case changeset do
       %Ecto.Changeset{valid?: true, changes: %{password: pass}} -> 
-        put_change(changeset, :password_digest,  Comeonin.Bcrypt.hash_pwd_salt(pass))
+        put_change(changeset, :password_digest,  Bcrypt.hash_pwd_salt(pass))
 
       _ ->
         changeset
