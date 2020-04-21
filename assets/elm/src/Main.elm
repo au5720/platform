@@ -4,6 +4,8 @@ import Browser
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick)
+import Http
+import Json.Decode as Decode
 
 
 
@@ -25,29 +27,98 @@ main =
 
 type alias Model =
     { gamesList : List Game
-    , displayGameList : Bool
+    , playersList : List Player
     }
 
 
 type alias Game =
-    { title : String
-    , description : String
+    { description : String
+    , featured : Bool
+    , id : Int
+    , thumbnail : String
+    , title : String
+    }
+
+
+type alias Player =
+    { displayName : Maybe String
+    , id : Int
+    , score : Int
+    , username : String
     }
 
 
 initialModel : Model
 initialModel =
-    { gamesList =
-        [ { title = "Platform Game", description = "Platform game example" }
-        , { title = "AdventureGame", description = "Adventure game example" }
-        ]
-    , displayGameList = True
+    { gamesList = []
+    , playersList = []
     }
+
+
+initialCommand : Cmd Msg
+initialCommand =
+    Cmd.batch
+        [ fetchPlayersList
+        , fetchGamesList
+        ]
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( initialModel, Cmd.none )
+    ( initialModel, initialCommand )
+
+
+
+-- API
+
+
+fetchGamesList : Cmd Msg
+fetchGamesList =
+    Http.get
+        { url = "/api/games"
+        , expect = Http.expectJson FetchGamesList decodeGamesList
+        }
+
+
+decodeGamesList : Decode.Decoder (List Game)
+decodeGamesList =
+    decodeGame
+        |> Decode.list
+        |> Decode.at [ "data" ]
+
+
+decodeGame : Decode.Decoder Game
+decodeGame =
+    Decode.map5 Game
+        (Decode.field "description" Decode.string)
+        (Decode.field "featured" Decode.bool)
+        (Decode.field "id" Decode.int)
+        (Decode.field "thumbnail" Decode.string)
+        (Decode.field "title" Decode.string)
+
+
+fetchPlayersList : Cmd Msg
+fetchPlayersList =
+    Http.get
+        { url = "/api/players"
+        , expect = Http.expectJson FetchPlayersList decodePlayersList
+        }
+
+
+decodePlayersList : Decode.Decoder (List Player)
+decodePlayersList =
+    decodePlayer
+        |> Decode.list
+        |> Decode.at [ "data" ]
+
+
+decodePlayer : Decode.Decoder Player
+decodePlayer =
+    Decode.map4 Player
+        (Decode.maybe (Decode.field "display_name" Decode.string))
+        (Decode.field "id" Decode.int)
+        (Decode.field "score" Decode.int)
+        (Decode.field "username" Decode.string)
 
 
 
@@ -55,18 +126,30 @@ init _ =
 
 
 type Msg
-    = DisplayGameList
-    | HideGameList
+    = FetchGamesList (Result Http.Error (List Game))
+    | FetchPlayersList (Result Http.Error (List Player))
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        DisplayGameList ->
-            ( { model | displayGameList = True }, Cmd.none )
+        FetchPlayersList result ->
+            case result of
+                Ok players ->
+                    ( { model | playersList = players }, Cmd.none )
 
-        HideGameList ->
-            ( { model | displayGameList = False }, Cmd.none )
+                Err _ ->
+                    Debug.log "Error fetching players from API."
+                        ( model, Cmd.none )
+
+        FetchGamesList result ->
+            case result of
+                Ok games ->
+                    ( { model | gamesList = games }, Cmd.none )
+
+                Err _ ->
+                    Debug.log "Error fetching games from API."
+                        ( model, Cmd.none )
 
 
 
@@ -85,20 +168,21 @@ subscriptions model =
 view : Model -> Html Msg
 view model =
     div []
-        [ h1 [ class "games-section" ] [ text "Games" ]
-        , button [ class "button", onClick DisplayGameList ] [ text "Display Games List" ]
-        , button [ class "button", onClick HideGameList ] [ text "Hide Games List" ]
-        , if model.displayGameList then
-            gameIndex model
-
-          else
-            div [] []
+        [ playersIndex model
+        , gamesIndex model
         ]
 
 
-gameIndex : Model -> Html msg
-gameIndex model =
-    div [ class "games-index" ] [ gameList model.gamesList ]
+gamesIndex : Model -> Html msg
+gamesIndex model =
+    if List.isEmpty model.gamesList then
+        div [] []
+
+    else
+        div [ class "games-index" ]
+            [ h2 [] [ text "Games" ]
+            , gameList model.gamesList
+            ]
 
 
 gameList : List Game -> Html msg
@@ -111,4 +195,40 @@ gameListItem game =
     li []
         [ strong [] [ text game.title ]
         , p [] [ text game.description ]
+        ]
+
+
+playersIndex : Model -> Html msg
+playersIndex model =
+    let
+        playersSortedByScore =
+            model.playersList
+                |> List.sortBy .score
+                |> List.reverse
+    in
+    if List.isEmpty model.playersList then
+        div [] []
+
+    else
+        div [ class "players-index" ]
+            [ h2 [] [ text "Players" ]
+            , playersList playersSortedByScore
+            ]
+
+
+playersList : List Player -> Html msg
+playersList players =
+    ul [ class "players-list" ] (List.map playersListItem players)
+
+
+playersListItem : Player -> Html msg
+playersListItem player =
+    li [ class "player-item" ]
+        [ case player.displayName of
+            Just displayName ->
+                strong [] [ text displayName ]
+
+            Nothing ->
+                strong [] [ text player.username ]
+        , p [] [ text (String.fromInt player.score) ]
         ]
